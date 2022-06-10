@@ -1,0 +1,131 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Security group stack for staging environment
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Naming convention setting
+        Parameters:
+          - Env
+          - SystemName
+
+Parameters:
+  Env:
+    Default: "stg"
+    Type: String
+    Description: "Environment name"
+  SystemName:
+    Default: "SystemName" ##
+    Type: String
+    Description: "System name"
+
+Resources:
+  # ----
+  # EC2
+  # ----
+  SDMWebSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow TCP port 80 and port 22
+      GroupName: !Sub ${SystemName}-${Env}-sdm-web-sg
+      Tags:
+        - Key: Name
+          Value: !Sub ${SystemName}-${Env}-sdm-web-sg
+        - Key: Env
+          Value: !Sub ${Env}
+        - Key: SystemName
+          Value: !Sub ${SystemName}
+      VpcId:
+        Fn::ImportValue: StgNetworkVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          SourceSecurityGroupId: !Ref AnsibleSG
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          SourceSecurityGroupId: !Ref ManagementSG
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref SDMWebAlbSG
+
+  SDMApiSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow TCP port 80 and port 22
+      GroupName: !Sub ${SystemName}-${Env}-sdm-api-sg
+      Tags:
+        - Key: Name
+          Value: !Sub ${SystemName}-${Env}-sdm-api-sg
+        - Key: Env
+          Value: !Sub ${Env}
+        - Key: SystemName
+          Value: !Sub ${SystemName}
+      VpcId:
+        Fn::ImportValue: StgNetworkVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          SourceSecurityGroupId: !Ref AnsibleSG
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          SourceSecurityGroupId: !Ref ManagementSG
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref SDMApiAlbSG
+
+  SDMScSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow TCP port 80 and port 22
+      GroupName: !Sub ${SystemName}-${Env}-sdm-sc-sg
+      Tags:
+        - Key: Name
+          Value: !Sub ${SystemName}-${Env}-sdm-sc-sg
+        - Key: Env
+          Value: !Sub ${Env}
+        - Key: SystemName
+          Value: !Sub ${SystemName}
+      VpcId:
+        Fn::ImportValue: StgNetworkVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          SourceSecurityGroupId: !Ref AnsibleSG
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          SourceSecurityGroupId: !Ref ManagementSG
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref SDMScAlbSG
+
+Outputs:
+  # ----
+  # EC2 Outputs
+  # ----
+  SDMWebSG:
+    Value: !Ref SDMWebSG
+    Description: Security Group of SDM Web SG
+    Export:
+      Name: StgSDMWebSG
+
+  SDMApiSG:
+    Value: !Ref SDMApiSG
+    Description: Security Group of SDM Api SG
+    Export:
+      Name: StgSDMApiSG
+
+  SDMScSG:
+    Value: !Ref SDMScSG
+    Description: Security Group of SDM Sc SG
+    Export:
+      Name: StgSDMScSG

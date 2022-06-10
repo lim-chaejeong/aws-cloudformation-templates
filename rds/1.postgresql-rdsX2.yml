@@ -1,0 +1,140 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Aurora PostgreSQL creation
+# ------------
+# Parameters
+# ------------
+Parameters:
+  Env:
+    Default: "stg"
+    Type: String
+    Description: "Environment name"
+  SystemName:
+    Default: "SystemName" ##
+    Type: String
+    Description: "System name"
+  DBName:
+    Description: Enter DB Name
+    Default: "DBName" ##
+    Type: String
+  DBInstanceClass:
+    Description: DBInstanceType
+    Default: "db.t3.medium" ##
+    Type: String
+  BackupRetentionPeriod:
+    Description: BuckUp Generation(1-35)
+    Type: String
+    Default: "7"
+  BackupWindow:
+    Description: Enter BackupWindow
+    Type: String
+    Default: "18:48-19:18"
+  MaintenanceWindow:
+    Description: Enter MaintenanceWindow(UTC)
+    Type: String
+    Default: "sun:17:18-sun:17:48"
+  DBMasterUserName:
+    Description: DB MasterUserName
+    Type: String
+    Default: DBMasterUserName ##
+  DBMasterPassword:
+    NoEcho: true
+    Description: DB MasterPassword
+    Type: String
+  DBInstanceMaintenanceWindow1:
+    Description: Enter Instance MaintenanceWindow(UTC)
+    Type: String
+    Default: "wed:14:06-wed:14:36"
+  DBInstanceMaintenanceWindow2:
+    Description: Enter Instance MaintenanceWindow(UTC)
+    Type: String
+    Default: "mon:18:35-mon:19:05"
+  
+# ------------
+# Resources
+# ------------
+Resources:
+
+  # ------------
+  # Subnet Group
+  # ------------
+  StgauroraSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Aurora Subnet Group
+      DBSubnetGroupName: !Sub ${SystemName}-${Env}-aurora-subnet-group
+      SubnetIds:
+        - Fn::ImportValue: StgDatastoreSubnetA
+        - Fn::ImportValue: StgDatastoreSubnetC
+        - Fn::ImportValue: StgDatastoreSubnetD
+      Tags:
+        - Key: Name
+          Value: !Sub ${SystemName}-${Env}-aurora-subnet-group
+  
+  # ------------
+  # PostgreSQL DB Cluster
+  # ------------
+  PostgreSQLDBCluster1:
+    Type: AWS::RDS::DBCluster
+    Properties:
+      BackupRetentionPeriod: !Ref BackupRetentionPeriod
+      DatabaseName: !Ref DBName
+      DBClusterIdentifier: !Sub ${SystemName}-${Env}-aurora-cluster
+      DBSubnetGroupName: !Ref StgauroraSubnetGroup
+      DeletionProtection: false
+      EnableIAMDatabaseAuthentication: false
+      CopyTagsToSnapshot: True
+      StorageEncrypted: True
+      Engine: aurora-postgresql
+      EngineVersion: "11.7"
+      MasterUsername: !Ref DBMasterUserName
+      MasterUserPassword: !Ref DBMasterPassword
+      Port: 5432
+      PreferredBackupWindow: !Ref BackupWindow
+      PreferredMaintenanceWindow: !Ref MaintenanceWindow
+      VpcSecurityGroupIds:
+        - Fn::ImportValue: StgRdsAuroraSG
+      Tags:
+        - Key: Name
+          Value: !Sub ${SystemName}-${Env}-aurora
+        - Key: Env
+          Value: !Sub ${Env}
+        - Key: SystemName
+          Value: !Sub ${SystemName}
+
+  # ------------
+  # PostgreSQL Instance1
+  # ------------
+  PostgreSQLDBInstance1:
+    Type: "AWS::RDS::DBInstance"
+    Properties:
+      AutoMinorVersionUpgrade: false
+      AvailabilityZone: "ap-northeast-1a"
+      DBInstanceClass: !Ref DBInstanceClass
+      PreferredMaintenanceWindow: !Ref DBInstanceMaintenanceWindow1
+      DBInstanceIdentifier: !Sub ${SystemName}-${Env}-aurora-instance-1
+      DBClusterIdentifier: !Ref PostgreSQLDBCluster1
+      DBSubnetGroupName: !Ref StgauroraSubnetGroup
+      MonitoringInterval: 60
+      MonitoringRoleArn: !ImportValue StgRDSRoleArn ##
+      Engine: aurora-postgresql
+      EngineVersion: "11.7"
+      EnablePerformanceInsights: True
+
+  # ------------
+  # PostgreSQL Instance2
+  # ------------
+  PostgreSQLDBInstance2:
+    Type: "AWS::RDS::DBInstance"
+    Properties:
+      AutoMinorVersionUpgrade: false
+      AvailabilityZone: "ap-northeast-1c"
+      DBInstanceClass: !Ref DBInstanceClass
+      PreferredMaintenanceWindow: !Ref DBInstanceMaintenanceWindow2
+      DBInstanceIdentifier: !Sub ${SystemName}-${Env}-aurora-instance-2
+      DBClusterIdentifier: !Ref PostgreSQLDBCluster1
+      DBSubnetGroupName: !Ref StgauroraSubnetGroup
+      MonitoringInterval: 60
+      MonitoringRoleArn: !ImportValue StgRDSRoleArn ##
+      Engine: aurora-postgresql
+      EngineVersion: "11.7"
+      EnablePerformanceInsights: True

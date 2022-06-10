@@ -1,0 +1,140 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Smart Delivery Management EC2 instance
+
+# ------------
+# Parameters
+# ------------
+Parameters:
+  Env:
+    Default: "stg"
+    Type: String
+    Description: "Environment name"
+  SystemName:
+    Default: "SystemName" ##
+    Type: String
+    Description: "System name"
+  KeyName:
+    Description: Key Pair for EC2
+    Type: AWS::EC2::KeyPair::KeyName
+  AMIID:
+    Description: "Enter ami-id"
+    Type: AWS::EC2::Image::Id
+  InstanceTypeEC2:
+    Description: "InstanceType for EC2."
+    Type: String
+
+# ------------
+# Resources
+# ------------
+Resources:
+  # ----
+  # EC2 Instance 1
+  # ----
+  SDMApiEC2instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AMIID
+      InstanceType: !Ref InstanceTypeEC2
+      SubnetId: !ImportValue StgDmzSubnetA
+      DisableApiTermination: true
+      BlockDeviceMappings:
+        - DeviceName: "/dev/xvda"
+          Ebs:
+            VolumeType: gp2
+            VolumeSize: 8
+            DeleteOnTermination: true
+      SecurityGroupIds:
+        - Fn::ImportValue: StgSDMApiSG
+      KeyName: !Ref KeyName
+      Monitoring: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${SystemName}-${Env}-sdm-api
+        - Key: Env
+          Value: !Sub ${Env}
+        - Key: SystemName
+          Value: !Sub ${SystemName}
+
+  # ----
+  # EC2 Instance 2
+  # ----
+  SDMWebEC2instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AMIID
+      InstanceType: !Ref InstanceTypeEC2
+      SubnetId: !ImportValue StgDmzSubnetA
+      DisableApiTermination: true
+      BlockDeviceMappings:
+        - DeviceName: "/dev/xvda"
+          Ebs:
+            VolumeType: gp2
+            VolumeSize: 8
+            DeleteOnTermination: true
+      SecurityGroupIds:
+        - Fn::ImportValue: StgSDMWebSG
+      KeyName: !Ref KeyName
+      Monitoring: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${SystemName}-${Env}-sdm-web
+        - Key: Env
+          Value: !Sub ${Env}
+        - Key: SystemName
+          Value: !Sub ${SystemName}
+
+  # ----
+  # EC2 Instance 3
+  # ----
+  SDMScEC2instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AMIID
+      InstanceType: !Ref InstanceTypeEC2
+      SubnetId: !ImportValue StgDmzSubnetA
+      DisableApiTermination: true
+      BlockDeviceMappings:
+        - DeviceName: "/dev/xvda"
+          Ebs:
+            VolumeType: gp2
+            VolumeSize: 8
+            DeleteOnTermination: true
+      SecurityGroupIds:
+        - Fn::ImportValue: StgSDMScSG
+      KeyName: !Ref KeyName
+      Monitoring: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${SystemName}-${Env}-sdm-sc
+        - Key: Env
+          Value: !Sub ${Env}
+        - Key: SystemName
+          Value: !Sub ${SystemName}
+
+  # ----
+  # ElasticIP for SDMWebEC2instance　for instance2
+  # ----
+  SDMWebElasticIP:
+    Type: "AWS::EC2::EIP"
+    Properties:
+      Domain: vpc
+
+  SDMWebElasticIPAssociate:
+    Type: AWS::EC2::EIPAssociation
+    Properties: 
+      AllocationId: !GetAtt SDMWebElasticIP.AllocationId
+      InstanceId: !Ref SDMWebEC2instance
+
+  # ----
+  # ElasticIP for SDMScEC2instance　for instance3
+  # ----
+  SDMScElasticIP:
+    Type: "AWS::EC2::EIP"
+    Properties:
+      Domain: vpc
+
+  SDMScElasticIPAssociate:
+    Type: AWS::EC2::EIPAssociation
+    Properties: 
+      AllocationId: !GetAtt SDMScElasticIP.AllocationId
+      InstanceId: !Ref SDMScEC2instance

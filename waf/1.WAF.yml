@@ -1,0 +1,156 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  Prefix:
+    Type: String
+    Default: Prefix ##
+    Description: "Fill in the name of the system name."
+  Env:
+    Type: String
+    Default: prod
+    Description: "Fill in the name of the environment."
+  SCOPE:
+    Type: String
+    Default: scope
+  WebAclScope:
+    Type: String
+    Default: REGIONAL
+    Description: "Fill in the scope of waf(REGIONAL or CLOUDFRONT)"
+  WebAclAssociationResourceArn:
+    Type: String
+    Default: Enter ALB ARN
+    Description: "Enter ALB ARN to associate with WEB ACL"
+  IPAddress:
+    Type: String
+    Default: Enter ip address
+    Description: "ip address for IPSet"
+
+Resources:
+  WebAcl:
+    Type: AWS::WAFv2::WebACL
+    Properties: 
+      Name: !Sub ${Prefix}-${SCOPE}-${Env}-waf-acl
+      Description: !Sub "web acl for ${Env} alb"
+      Scope: !Ref WebAclScope
+      DefaultAction:
+        Allow: {}
+      VisibilityConfig:
+        CloudWatchMetricsEnabled: true
+        SampledRequestsEnabled: true
+        MetricName: !Sub ${Prefix}-${SCOPE}-${Env}-waf-acl
+      Rules:
+        -
+          Name: Custom-IPaddress-WhiteList
+          Priority: 0
+          Statement:
+            IPSetReferenceStatement:
+              ARN: !GetAtt WebIPSet.Arn
+          Action:
+            Allow: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: Custom-IPaddress-WhiteList
+        -
+          Name: AWS-AWSManagedRulesAmazonIpReputationList
+          Priority: 1
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesAmazonIpReputationList
+          OverrideAction:
+            None: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesAmazonIpReputationList
+        -
+          Name: AWS-AWSManagedRulesCommonRuleSet
+          Priority: 2
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesCommonRuleSet
+              ExcludedRules:
+              - Name: CrossSiteScripting_BODY
+              - Name: GenericLFI_BODY
+              - Name: GenericRFI_BODY
+              - Name: GenericRFI_QUERYARGUMENTS
+              - Name: SizeRestrictions_BODY
+          OverrideAction:
+            None: {}
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            SampledRequestsEnabled: true
+            MetricName: AWSManagedRulesCommonRuleSet
+        -
+          Name: AWS-AWSManagedRulesKnownBadInputsRuleSet
+          Priority: 3
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesKnownBadInputsRuleSet
+          OverrideAction:
+            None: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesKnownBadInputsRuleSet
+        -
+          Name: AWS-AWSManagedRulesLinuxRuleSet
+          Priority: 4
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesLinuxRuleSet
+          OverrideAction:
+            None: {}
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            SampledRequestsEnabled: true
+            MetricName: AWSManagedRulesLinuxRuleSet
+        -
+          Name: AWS-AWSManagedRulesUnixRuleSet
+          Priority: 5
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesUnixRuleSet
+          OverrideAction:
+            None: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            CloudWatchMetricsEnabled: true
+            MetricName: AWSManagedRulesUnixRuleSet
+        -
+          Name: AWS-AWSManagedRulesPHPRuleSet
+          Priority: 6
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesPHPRuleSet
+          OverrideAction:
+            None: {}
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            SampledRequestsEnabled: true
+            MetricName: AWSManagedRulesPHPRuleSet
+  WAFLogConfig:
+    Type: AWS::WAFv2::LoggingConfiguration
+    Properties:
+      LogDestinationConfigs:
+        - !Sub arn:aws:s3:::aws-waf-logs-${Prefix}-${SCOPE}-${Env}-${AWS::AccountId}
+      ResourceArn: !GetAtt WebAcl.Arn
+  WebACLAssociation:
+    Type: AWS::WAFv2::WebACLAssociation
+    Properties:
+      ResourceArn: !Ref WebAclAssociationResourceArn
+      WebACLArn: !GetAtt WebAcl.Arn
+  WebIPSet:
+    Type: AWS::WAFv2::IPSet
+    Properties: 
+      Addresses: 
+        - !Ref IPAddress
+      IPAddressVersion: IPV4
+      Name: "Custom-ipaddress-whitelist"
+      Scope: !Ref WebAclScope

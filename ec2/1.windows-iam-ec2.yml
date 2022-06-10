@@ -1,0 +1,122 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+# ------------
+# Parameters
+# ------------
+Parameters:
+  CompanyPrefix:
+    Description: "System prefix of company shared resource."
+    Type: String
+    Default: "CompanyPrefix" ##
+  SystemPrefix:
+    Description: "System prefix of each resource names."
+    Type: String
+    Default: "SystemPrefix" ##
+  EC2KeyName:
+    Description: "EC2 key pair name"
+    Default: "EC2KeyName" ##
+    Type: String
+  EC2InstanceType:
+    Description: "EC2 instance type"
+    Default: "r5a.xlarge" ##
+    Type: String
+  WindowsAMI:
+    Description: "Windows Server 2019 / SQL Server 2019"
+    Default: "ami-00aea8c45ad3c4df0" ##
+    Type: String
+
+# ------------
+# Parameters
+# ------------
+Resources:
+  # ------------
+  # IAM Role
+  # ------------
+  EC2Role:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "ec2.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+        - "arn:aws:iam::aws:policy/CloudWatchAgentAdminPolicy"
+      Path: "/"
+      RoleName: !Join ["-", [!Ref SystemPrefix, prd, windows, role]]
+
+  # ------------
+  # IAM Instance Profile
+  # ------------ 
+  EC2Profile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      Path: "/"
+      Roles: 
+        - Ref: "EC2Role"
+      InstanceProfileName: !Join ["-", [!Ref SystemPrefix, prd, windows, instanceprofile]]
+
+  # ------------
+  # EC2 Instance
+  # ------------
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref WindowsAMI
+      InstanceType: !Ref EC2InstanceType
+      KeyName: !Ref EC2KeyName
+      IamInstanceProfile: !Ref EC2Profile
+      DisableApiTermination: True
+      EbsOptimized: True
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 50
+            VolumeType: gp2
+        - DeviceName: xvdf
+          Ebs:
+            VolumeSize: 100
+            VolumeType: gp2
+      SecurityGroupIds: 
+        - !Ref SecurityGroup
+      SubnetId: subnet-0000 ##
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Sub: "${SystemPrefix}-prd-ec2"
+
+  # ------------
+  # SecurityGroup
+  # ------------
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName:
+        Fn::Sub: "${SystemPrefix}-prd-sg"
+      GroupDescription:
+        Fn::Sub: "${SystemPrefix}-prd-sg"
+      VpcId:
+        Fn::ImportValue:
+          Fn::Sub: "${CompanyPrefix}-vpc" ##
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3389
+          ToPort: 3389
+          CidrIp: 10.0.0.0/8
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 192.168.0.0/16
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 10.0.0.0/8
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Sub: "${SystemPrefix}-prd-sg"

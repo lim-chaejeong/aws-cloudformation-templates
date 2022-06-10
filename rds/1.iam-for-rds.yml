@@ -1,0 +1,46 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: IAM
+
+Parameters:
+  Env:
+    Default: "stg"
+    Type: String
+    Description: "Environment name"
+  SystemName:
+    Default: "SystemName" ##
+    Type: String
+    Description: "System name"
+
+Resources:
+  # ------------
+  # RDS IAM Role
+  # ------------
+  DBRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "monitoring.rds.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
+      Path: "/"
+      RoleName: !Sub ${SystemName}-${Env}-aurora-monitoring-role
+      Tags:
+        - Key: Name
+          Value: !Sub ${SystemName}-${Env}-aurora-monitoring-role
+        - Key: Env
+          Value: !Sub ${Env}
+        - Key: SystemName
+          Value: !Sub ${SystemName}
+
+Outputs:
+  DBRoleArn:
+    Value: !GetAtt DBRole.Arn
+    Export:
+      Name: StgDBRoleArn
